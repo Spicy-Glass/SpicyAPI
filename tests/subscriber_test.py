@@ -2,8 +2,8 @@ from queuingutils.subscriber import Subscriber
 
 if __name__ == "__main__":
     project_id = 'pub-sub132608'
-    subscription_name = 'sub_one'
-    topic_name = 'hello-topic'
+    subscription_name = 'sub_asdfjfdklsjdjdyebv_V-1'
+    topic_name = 'api-pub'
 
     subscriber = Subscriber(project_id, subscription_name, topic_name)
 

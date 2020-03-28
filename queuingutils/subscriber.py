@@ -1,5 +1,6 @@
 from google.cloud import pubsub_v1
 import time
+import json
 
 
 class Subscriber:
@@ -10,6 +11,22 @@ class Subscriber:
         self.topic_name = topic_name
         self.project = self.get_project(project_id)
         self.subscriber = self.get_subscriber(project_id, subscriber)
+        self.initial_check()
+
+    def initial_check(self):
+        subscriptions_iterator = self.get_subscriptions()
+        subscriptions_list = []
+
+        for sub in subscriptions_iterator:
+            subscriptions_list.append(sub.name)
+
+        # print(f"Subscriber path: {self.subscriber}")
+        # print(f"All subscriptions: {subscriptions_list}")
+
+        if self.subscriber not in subscriptions_list:
+            print(f"Creating {self.subscriber}")
+            print(f"Subscriptions: {subscriptions_list}")
+            # self.create_subscriber(self.subscriber_name)
 
     def get_project(self, project_id):
         """
@@ -38,6 +55,9 @@ class Subscriber:
                 project_id, subscriber
             )
 
+    def get_subscriptions(self):
+        return self._subscriber_obj.list_subscriptions(self.project)
+
     def create_subscriber(self, name):
         subscriber_path = self._subscriber_obj.subscription_path(
             self.project_id, name
@@ -46,7 +66,7 @@ class Subscriber:
             self.project_id, self.topic_name
         )
 
-        self._subscriber_obj.create_subscriber(subscriber_path, topic_path)
+        self._subscriber_obj.create_subscription(subscriber_path, topic_path)
 
     @staticmethod
     def callback(message):
@@ -60,8 +80,13 @@ class Subscriber:
         :return:
         """
         print(f"Received message: {message.data}")
-        metadata_dict = message.attributes
+        print(dict(message.attributes))
+        metadata_string = dict(message.attributes).get('metadata')
+        metadata_dict = json.loads(metadata_string)
+        metadata_dict.replace("false", "False")
+        metadata_dict.replace("true", "True")
         print(f"Message metadata: {metadata_dict}")
+        print(f"type: {type(metadata_dict)}")
         message.ack()
 
     def start_server(self):

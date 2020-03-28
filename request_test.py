@@ -91,15 +91,19 @@ if __name__ == "__main__":
         "vehicle_id": "V-1",
         "key": "carLock",
         "subkey": None,
-        "new_val": False
+        "new_val": False,
+        "sender": "app",
+        "token": "asdfjfdklsjdjdyebv"
     }
 
-    dict2 = {
-        "vehicle_id": "V-2",
-        "key": "seatHeater",
-        "subkey": "fDriver",
-        "new_val": True
-    }
+    # dict2 = {
+    #     "vehicle_id": "V-2",
+    #     "key": "seatHeater",
+    #     "subkey": "fDriver",
+    #     "new_val": True,
+    #     "sender": "vehicle",
+    #     "token": "asdfjfdklsjdjdyebv"
+    # }
 
     test_obj.set_val_test(message=dict1)
-    test_obj.set_val_test(message=dict2)
+    # test_obj.set_val_test(message=dict2)

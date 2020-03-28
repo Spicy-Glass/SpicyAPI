@@ -1,6 +1,7 @@
 from flask import Flask, request
 from firebase_interface import FirebaseInterface
 from queuingutils.publisher import Publisher
+from queuingutils.subscriber import Subscriber
 import json
 
 spicy_api = Flask(__name__)
@@ -56,6 +57,18 @@ def turn_off_vehicle(id):
                                              val=current_states)
 
     return set_response
+
+
+def build_subscriber_name(sender, token, vehicle_id=None):
+    if sender == "app":
+        return f"sub_{token}_{vehicle_id}"
+    elif sender == "vehicle":
+        return f"sub_{token}_app"
+    return False
+
+
+def build_publisher_name(token):
+    return f"pub_{token}"
 
 
 @spicy_api.route("/get_full_database", methods=['GET'])
@@ -149,6 +162,12 @@ def set_val():
     key = post_request['key']
     new_val = post_request['new_val']
     sender = post_request['sender']
+    token = post_request['token']
+
+    publisher = Publisher(PROJECT_ID, TOPIC_NAME)
+
+    # build the subscriber name
+    sub_name = build_subscriber_name(sender, token, vehicle_id)
 
     try:
         subkey = post_request['subkey']
@@ -159,22 +178,36 @@ def set_val():
     if key == 'carOn' and new_val == False:
         set_response = turn_off_vehicle(vehicle_id)
 
-        publisher = Publisher(PROJECT_ID, TOPIC_NAME)
-
         if set_response is None:
             return "False"
         else:
-            publisher.publish_message()
-            return "True"
+            vehicle_data = FIREBASE_OBJ.get_data(key=f'vehicles',
+                                                 subkey=vehicle_id)
+
+            string_dict = json.dumps(vehicle_data)
+
+            # Assumes that the subscribers already exist
+            publisher.publish_message(sub_name.encode("utf-8"),
+                                      string_dict)
+
+            return f"Sending message to {sub_name}"
 
     response = FIREBASE_OBJ.change_value(key=f"vehicles/{vehicle_id}/states/{key}",
                                          subkey=subkey,
                                          val=new_val)
 
+    vehicle_data = FIREBASE_OBJ.get_data(key=f'vehicles',
+                                         subkey=vehicle_id)
+
+    string_dict = json.dumps(vehicle_data)
+
     if response is None:
         return "False"
     else:
-        return "True"
+        publisher.publish_message(sub_name.encode("utf-8"),
+                                  string_dict)
+
+        return f"Sending message to {sub_name}"
 
 
 if __name__ == "__main__":
