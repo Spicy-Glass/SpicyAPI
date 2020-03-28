@@ -20,14 +20,15 @@ class Publisher:
         if self.topic not in topics_list:
             self.create_topic(self.topic)
 
-    def publish_message(self, message, metadata):
+    def publish_message(self, dict_message, recipient):
         import json
 
-        string_metadata = json.dumps(metadata)
+        string_message = json.dumps(dict_message)
+        encoded_message = string_message.encode("utf-8")
 
-        self._publisher_obj.publish(self.topic,
-                                    message,
-                                    metadata=string_metadata)
+        self._publisher_obj.publish(data=encoded_message,
+                                    topic=self.topic,
+                                    recipient=recipient)
 
     def create_topic(self, topic_name):
         response = self._publisher_obj.create_topic(topic_name)

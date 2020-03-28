@@ -68,8 +68,7 @@ class Subscriber:
 
         self._subscriber_obj.create_subscription(subscriber_path, topic_path)
 
-    @staticmethod
-    def callback(message):
+    def callback(self, message):
         """
 
         This function will be called every time a new message is pulled from
@@ -79,14 +78,22 @@ class Subscriber:
         message
         :return:
         """
-        print(f"Received message: {message.data}")
-        print(dict(message.attributes))
-        metadata_string = dict(message.attributes).get('metadata')
-        metadata_dict = json.loads(metadata_string)
-        metadata_dict.replace("false", "False")
-        metadata_dict.replace("true", "True")
-        print(f"Message metadata: {metadata_dict}")
-        print(f"type: {type(metadata_dict)}")
+        # print(f"Received message: {message.data}\n")
+        decoded_message = message.data.decode("utf-8")
+        try:
+            message_dict = json.loads(decoded_message)
+            recipient = message.attributes['recipient']
+            # print(f"recipient = {recipient}\n")
+            # print(f"message_dict = {message_dict}\n")
+
+            if recipient == self.subscriber_name:
+                print("Message is meant for this subscriber!\n")
+                print(f"message_dict = {message_dict}\n")
+                print(f"recipient = {recipient}\n")
+        except Exception as e:
+            print(f"{decoded_message} was not a string dictionary.")
+            print(f"Exception: {e}")
+
         message.ack()
 
     def start_server(self):
@@ -101,7 +108,7 @@ class Subscriber:
         print("...")
         while True:
             streaming_pull_future = self._subscriber_obj.subscribe(
-                self.subscriber, callback=Subscriber.callback
+                self.subscriber, callback=self.callback
             )
 
             try:

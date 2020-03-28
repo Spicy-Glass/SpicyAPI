@@ -184,11 +184,8 @@ def set_val():
             vehicle_data = FIREBASE_OBJ.get_data(key=f'vehicles',
                                                  subkey=vehicle_id)
 
-            string_dict = json.dumps(vehicle_data)
-
             # Assumes that the subscribers already exist
-            publisher.publish_message(sub_name.encode("utf-8"),
-                                      string_dict)
+            publisher.publish_message(vehicle_data['states'], recipient=sub_name)
 
             return f"Sending message to {sub_name}"
 
@@ -199,13 +196,10 @@ def set_val():
     vehicle_data = FIREBASE_OBJ.get_data(key=f'vehicles',
                                          subkey=vehicle_id)
 
-    string_dict = json.dumps(vehicle_data)
-
     if response is None:
         return "False"
     else:
-        publisher.publish_message(sub_name.encode("utf-8"),
-                                  string_dict)
+        publisher.publish_message(vehicle_data['states'], recipient=sub_name)
 
         return f"Sending message to {sub_name}"
 
