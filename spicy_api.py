@@ -1,6 +1,7 @@
 from flask import Flask, request
 from firebase_interface import FirebaseInterface
 from queuingutils.publisher import Publisher
+from queuingutils.subscriber import Subscriber
 import json
 import string
 import random
@@ -59,6 +60,19 @@ def turn_off_vehicle(id):
                                              val=current_states)
 
     return set_response
+
+
+def build_subscriber_name(sender, token, vehicle_id=None):
+    if sender == "app":
+        return f"sub_{token}_{vehicle_id}"
+    elif sender == "vehicle":
+        return f"sub_{token}_app"
+    return False
+
+
+def build_publisher_name(token):
+    return f"pub_{token}"
+
 
 # Temporary, we shouldn't keep this long term
 @spicy_api.route("/get_full_database", methods=['GET'])
@@ -248,6 +262,7 @@ def set_val():
     key = post_request['key']
     new_val = post_request['new_val']
     sender = post_request['sender']
+    token = post_request['token']
 
     try:
         subkey = post_request['subkey']
@@ -260,26 +275,37 @@ def set_val():
         return "False"
 
     if can_access_vehicle(user, vehicle_id):
+        publisher = Publisher(PROJECT_ID, TOPIC_NAME)
+        # build the subscriber name
+        sub_name = build_subscriber_name(sender, token, vehicle_id)
         # check if the request is to turn off the car
         if key == 'carOn' and new_val == False:
             set_response = turn_off_vehicle(vehicle_id)
 
-            publisher = Publisher(PROJECT_ID, TOPIC_NAME)
+        if set_response is None:
+            return "False"
+        else:
+            vehicle_data = FIREBASE_OBJ.get_data(key=f'vehicles',
+                                                 subkey=vehicle_id)
 
-            if set_response is None:
-                return "False"
-            else:
-                publisher.publish_message()
-                return "True"
+            # Assumes that the subscribers already exist
+            publisher.publish_message(vehicle_data['states'], recipient=sub_name)
+
+            return f"Sending message to {sub_name}"
 
         response = FIREBASE_OBJ.change_value(key=f"vehicles/{vehicle_id}/states/{key}",
                                             subkey=subkey,
                                             val=new_val)
 
+        vehicle_data = FIREBASE_OBJ.get_data(key=f'vehicles',
+                                            subkey=vehicle_id)
+
         if response is None:
             return "False"
         else:
-            return "True"
+            publisher.publish_message(vehicle_data['states'], recipient=sub_name)
+
+            return f"Sending message to {sub_name}"
     else:# Cannot access vehicle
         return "False"
 

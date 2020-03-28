@@ -1,5 +1,6 @@
 from google.cloud import pubsub_v1
 import time
+import json
 
 
 class Subscriber:
@@ -10,6 +11,22 @@ class Subscriber:
         self.topic_name = topic_name
         self.project = self.get_project(project_id)
         self.subscriber = self.get_subscriber(project_id, subscriber)
+        self.initial_check()
+
+    def initial_check(self):
+        subscriptions_iterator = self.get_subscriptions()
+        subscriptions_list = []
+
+        for sub in subscriptions_iterator:
+            subscriptions_list.append(sub.name)
+
+        # print(f"Subscriber path: {self.subscriber}")
+        # print(f"All subscriptions: {subscriptions_list}")
+
+        if self.subscriber not in subscriptions_list:
+            print(f"Creating {self.subscriber}")
+            print(f"Subscriptions: {subscriptions_list}")
+            # self.create_subscriber(self.subscriber_name)
 
     def get_project(self, project_id):
         """
@@ -38,6 +55,9 @@ class Subscriber:
                 project_id, subscriber
             )
 
+    def get_subscriptions(self):
+        return self._subscriber_obj.list_subscriptions(self.project)
+
     def create_subscriber(self, name):
         subscriber_path = self._subscriber_obj.subscription_path(
             self.project_id, name
@@ -46,10 +66,9 @@ class Subscriber:
             self.project_id, self.topic_name
         )
 
-        self._subscriber_obj.create_subscriber(subscriber_path, topic_path)
+        self._subscriber_obj.create_subscription(subscriber_path, topic_path)
 
-    @staticmethod
-    def callback(message):
+    def callback(self, message):
         """
 
         This function will be called every time a new message is pulled from
@@ -59,9 +78,22 @@ class Subscriber:
         message
         :return:
         """
-        print(f"Received message: {message.data}")
-        metadata_dict = message.attributes
-        print(f"Message metadata: {metadata_dict}")
+        # print(f"Received message: {message.data}\n")
+        decoded_message = message.data.decode("utf-8")
+        try:
+            message_dict = json.loads(decoded_message)
+            recipient = message.attributes['recipient']
+            # print(f"recipient = {recipient}\n")
+            # print(f"message_dict = {message_dict}\n")
+
+            if recipient == self.subscriber_name:
+                print("Message is meant for this subscriber!\n")
+                print(f"message_dict = {message_dict}\n")
+                print(f"recipient = {recipient}\n")
+        except Exception as e:
+            print(f"{decoded_message} was not a string dictionary.")
+            print(f"Exception: {e}")
+
         message.ack()
 
     def start_server(self):
@@ -76,7 +108,7 @@ class Subscriber:
         print("...")
         while True:
             streaming_pull_future = self._subscriber_obj.subscribe(
-                self.subscriber, callback=Subscriber.callback
+                self.subscriber, callback=self.callback
             )
 
             try:
