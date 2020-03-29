@@ -282,16 +282,16 @@ def set_val():
         if key == 'carOn' and new_val == False:
             set_response = turn_off_vehicle(vehicle_id)
 
-        if set_response is None:
-            return "False"
-        else:
-            vehicle_data = FIREBASE_OBJ.get_data(key=f'vehicles',
-                                                 subkey=vehicle_id)
+            if set_response is None:
+                return "False"
+            else:
+                vehicle_data = FIREBASE_OBJ.get_data(key=f'vehicles',
+                                                    subkey=vehicle_id)
 
-            # Assumes that the subscribers already exist
-            publisher.publish_message(vehicle_data['states'], recipient=sub_name)
+                # Assumes that the subscribers already exist
+                publisher.publish_message(vehicle_data['states'], recipient=sub_name)
 
-            return f"Sending message to {sub_name}"
+                return f"Sending message to {sub_name}"
 
         response = FIREBASE_OBJ.change_value(key=f"vehicles/{vehicle_id}/states/{key}",
                                             subkey=subkey,
