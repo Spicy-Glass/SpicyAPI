@@ -151,7 +151,8 @@ def attempt_login():
     if hash(password, user['salt']) == user['password']:
         token = gen_token()
         hashedToken = hash(token, user['salt'])
-        # TODO store hashedToken in the database as one of the user's tokens
+        # Attempt to store hashedToken in the database as one of the user's tokens. This should be tested.
+        FIREBASE_OBJ.add_value(key=f'users/{encode(username)}', subkey='token', val=hashedToken)
         return '{"token": "'+token+'"}'
     else:
         return "Invalid username or password."
@@ -168,8 +169,7 @@ def get_user(token):
         return "Error: Missing login token."
 
     usermatch = None
-    # TODO get all users
-    users = []
+    users = FIREBASE_OBJ.get_data(key=f'users')
     for user in users:
         hashedToken = hash(token, user['salt'])
         for userTokenKey in user['token']:

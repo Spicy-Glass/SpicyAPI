@@ -67,3 +67,22 @@ class FirebaseInterface:
         self._database_dict = self.get_data()
 
         return response
+
+    def add_value(self, key, val, subkey=None):
+        """
+        This function will add a value at a location specified by the
+        key and subkey.
+        :param key:
+        :param val
+        :param subkey
+        """
+
+        if subkey is None:
+            response = self._firebase_obj.update('', key, val)
+        else:
+            response = self._firebase_obj.update(key, subkey, val)
+
+        # Update the local database dictionary with the new database.
+        self._database_dict = self.get_data()
+
+        return response
