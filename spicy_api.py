@@ -1,11 +1,12 @@
+import hashlib
+import json
+import random
+import string
+
 from flask import Flask, request
+
 from firebase_interface import FirebaseInterface
 from queuingutils.publisher import Publisher
-from queuingutils.subscriber import Subscriber
-import json
-import string
-import random
-import hashlib
 
 spicy_api = Flask(__name__)
 
@@ -79,6 +80,7 @@ def build_publisher_name(token):
 def index():
     return FIREBASE_OBJ.get_data()
 
+
 # Revoke a token (Should be done on logout)
 @spicy_api.route("/revoke_token", methods=['POST'])
 def revoke_token():
@@ -96,7 +98,8 @@ def revoke_token():
         return "Error: Missing login token."
     # TODO Revoke the token
     # Return an empty json object to indicate success
-    return "{}"
+    return {}
+
 
 # Verify that your token is still valid
 @spicy_api.route("/verify_token", methods=['POST'])
@@ -113,10 +116,11 @@ def verify_token():
         user = get_user(post_request['token'])
     except KeyError:
         return "Error: Missing login token."
-    if(user == None):
+    if user is None:
         return "Invalid Token"
     # Return an empty json object to indicate success
     return "{}"
+
 
 # Attempt to log in to the server, returns the error message if it fails or the provided credentials are invalid
 @spicy_api.route("/attempt_login", methods=['POST'])
@@ -148,45 +152,50 @@ def attempt_login():
     if user is None:
         return "Invalid username or password."
 
-    if hash(password, user['salt']) == user['password']:
+    if hash_string_with_salt(password, user['salt']) == user['password']:
         token = gen_token()
-        hashedToken = hash(token, user['salt'])
+        hashedToken = hash_string_with_salt(token, user['salt'])
         # Attempt to store hashedToken in the database as one of the user's tokens. This should be tested.
         FIREBASE_OBJ.add_value(key=f'users/{encode(username)}', subkey='token', val=hashedToken)
-        return '{"token": "'+token+'"}'
+        return '{"token": "' + token + '"}'
     else:
         return "Invalid username or password."
 
+
 def gen_token():
-    possibleChars = string.ascii_lowercase+string.ascii_uppercase+string.digits
+    possibleChars = string.ascii_lowercase + string.ascii_uppercase + string.digits
     return ''.join(random.choice(possibleChars) for i in range(random.randint(25, 35)))
 
-def hash(inStr, salt):
-    return hashlib.pbkdf2_hmac('sha512', inStr, salt, 100000)
+
+def hash_string_with_salt(input_string, salt):
+    return hashlib.pbkdf2_hmac('sha512', input_string, salt, 100000)
+
 
 def get_user(token):
     if token is None:
         return "Error: Missing login token."
 
-    usermatch = None
+    user_match = None
     users = FIREBASE_OBJ.get_data(key=f'users')
     for user in users:
-        hashedToken = hash(token, user['salt'])
+        hashedToken = hash_string_with_salt(token, user['salt'])
         for userTokenKey in user['token']:
             if user['token'][userTokenKey] == hashedToken:
-                usermatch = user
+                user_match = user
                 break
 
-    if usermatch is None:
+    if user_match is None:
         return f"Error: invalid token: {token}"
     else:
-        return usermatch
+        return user_match
+
 
 def can_access_vehicle(user, vehicle_id):
     for item in user['vehicle']:
         if user['vehicle'][item] == vehicle_id:
             return True
     return False
+
 
 @spicy_api.route("/get_vehicle_id", methods=['POST'])
 def get_vehicle_ids():
@@ -202,7 +211,11 @@ def get_vehicle_ids():
         user = get_user(post_request['token'])
     except KeyError:
         return "Error: Missing login token."
+    # If token is somehow invalid (should not happen at this point), return the error message.
+    if user is string:
+        return user
 
+    # noinspection PyTypeChecker
     return user['vehicle']
 
 
@@ -232,7 +245,7 @@ def get_vehicle_data():
 
     if can_access_vehicle(user, vehicle_id):
         vehicle_data = FIREBASE_OBJ.get_data(key=f'vehicles',
-                                            subkey=vehicle_id)
+                                             subkey=vehicle_id)
 
         if vehicle_data is None:
             return f"Error: No vehicle data found for {vehicle_data}."
@@ -268,7 +281,7 @@ def set_val():
         subkey = post_request['subkey']
     except KeyError:
         subkey = None
-    
+
     try:
         user = get_user(post_request['token'])
     except KeyError:
@@ -279,14 +292,14 @@ def set_val():
         # build the subscriber name
         sub_name = build_subscriber_name(sender, token, vehicle_id)
         # check if the request is to turn off the car
-        if key == 'carOn' and new_val == False:
+        if key == 'carOn' and new_val is False:
             set_response = turn_off_vehicle(vehicle_id)
 
             if set_response is None:
                 return "False"
             else:
                 vehicle_data = FIREBASE_OBJ.get_data(key=f'vehicles',
-                                                    subkey=vehicle_id)
+                                                     subkey=vehicle_id)
 
                 # Assumes that the subscribers already exist
                 publisher.publish_message(vehicle_data['states'], recipient=sub_name)
@@ -294,11 +307,11 @@ def set_val():
                 return f"Sending message to {sub_name}"
 
         response = FIREBASE_OBJ.change_value(key=f"vehicles/{vehicle_id}/states/{key}",
-                                            subkey=subkey,
-                                            val=new_val)
+                                             subkey=subkey,
+                                             val=new_val)
 
         vehicle_data = FIREBASE_OBJ.get_data(key=f'vehicles',
-                                            subkey=vehicle_id)
+                                             subkey=vehicle_id)
 
         if response is None:
             return "False"
@@ -306,10 +319,9 @@ def set_val():
             publisher.publish_message(vehicle_data['states'], recipient=sub_name)
 
             return f"Sending message to {sub_name}"
-    else:# Cannot access vehicle
+    else:  # Cannot access vehicle
         return "False"
 
 
 if __name__ == "__main__":
     spicy_api.run(debug=True, host='0.0.0.0', port="8080")
-
