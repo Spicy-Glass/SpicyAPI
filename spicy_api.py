@@ -28,10 +28,10 @@ def decode(encoded_string):
     return raw_string
 
 
-def turn_off_vehicle(id):
+def turn_off_vehicle(vehicle_id):
     # retrieve the data corresponding to the desired vehicle
     vehicle_data = FIREBASE_OBJ.get_data(key=f'vehicles',
-                                         subkey=id)
+                                         subkey=vehicle_id)
 
     # isolate the vehicle's states
     current_states = vehicle_data['states']
@@ -56,7 +56,7 @@ def turn_off_vehicle(id):
     current_states['seatHeater'] = new_seat_heater
 
     # pass the updated dictionary to the firebase database
-    set_response = FIREBASE_OBJ.change_value(key=f'vehicles/{id}',
+    set_response = FIREBASE_OBJ.change_value(key=f'vehicles/{vehicle_id}',
                                              subkey='states',
                                              val=current_states)
 
@@ -134,8 +134,6 @@ def attempt_login():
     :return:
     """
     post_request = request.json
-    username = None
-    password = None
 
     try:
         username = post_request['username']
@@ -168,6 +166,10 @@ def gen_token():
 
 
 def hash_string_with_salt(input_string, salt):
+    if isinstance(input_string, str):
+        input_string = input_string.encode('utf-8')
+    if isinstance(salt, str):
+        salt = salt.encode('utf-8')
     return hashlib.pbkdf2_hmac('sha512', input_string, salt, 100000)
 
 
@@ -212,7 +214,7 @@ def get_vehicle_ids():
     except KeyError:
         return "Error: Missing login token."
     # If token is somehow invalid (should not happen at this point), return the error message.
-    if user is string:
+    if isinstance(user, str):
         return user
 
     # noinspection PyTypeChecker
