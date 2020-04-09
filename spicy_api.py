@@ -115,9 +115,9 @@ def verify_token():
     try:
         user = get_user(post_request['token'])
     except KeyError:
-        return "Error: Missing login token."
+        raise KeyError("VerifyToken: Missing login token.")
     if user is None:
-        return "Invalid Token"
+        raise ValueError("VerifyToken: Invalid login token.")
     # Return an empty json object to indicate success
     return "{}"
 
@@ -139,30 +139,30 @@ def attempt_login():
         username = post_request['username']
         password = post_request['password']
     except KeyError:
-        return "Error: Missing username or password."
+        raise KeyError("Error: Missing username or password.")
 
     if password is None or username is None:
-        return "Error: Missing username or password."
+        raise ValueError("Error: Missing username or password.")
 
     user = FIREBASE_OBJ.get_data(key=f'users',
                                  subkey=encode(username))
 
     if user is None:
-        return "Invalid username or password."
+        raise ValueError("Invalid username or password.")
 
-    if hash_string_with_salt(password, user['salt']) == user['password']:
+    if str(hash_string_with_salt(password, user['salt'])) == user['password']:
         token = gen_token()
-        hashedToken = hash_string_with_salt(token, user['salt'])
-        # Attempt to store hashedToken in the database as one of the user's tokens. This should be tested.
-        FIREBASE_OBJ.add_value(key=f'users/{encode(username)}', subkey='token', val=hashedToken)
-        return '{"token": "' + token + '"}'
+        hashed_token = str(hash_string_with_salt(token, user['salt']))
+        # Attempt to store hashed_token in the database as one of the user's tokens. This should be tested.
+        FIREBASE_OBJ.add_value(key=f'users/{encode(username)}', subkey='token', val=hashed_token)
+        return {"token": f"{token}"}
     else:
-        return "Invalid username or password."
+        raise ValueError("Invalid password.")
 
 
 def gen_token():
-    possibleChars = string.ascii_lowercase + string.ascii_uppercase + string.digits
-    return ''.join(random.choice(possibleChars) for i in range(random.randint(25, 35)))
+    possible_chars = string.ascii_lowercase + string.ascii_uppercase + string.digits
+    return ''.join(random.choice(possible_chars) for i in range(random.randint(25, 35)))
 
 
 def hash_string_with_salt(input_string, salt):
@@ -175,27 +175,33 @@ def hash_string_with_salt(input_string, salt):
 
 def get_user(token):
     if token is None:
-        return "Error: Missing login token."
+        return None
 
-    user_match = None
     users = FIREBASE_OBJ.get_data(key=f'users')
-    for user in users:
-        hashedToken = hash_string_with_salt(token, user['salt'])
-        for userTokenKey in user['token']:
-            if user['token'][userTokenKey] == hashedToken:
-                user_match = user
-                break
 
-    if user_match is None:
-        return f"Error: invalid token: {token}"
-    else:
-        return user_match
+    for user in users.keys():
+        hashed_token = str(hash_string_with_salt(token, users[user]['salt']))
+        # Look through all users for the user holding the passed in token
+        try:
+            if users[user]['token'] == hashed_token:
+                return users[user]
+        except KeyError:
+            continue
+
+    return None
 
 
 def can_access_vehicle(user, vehicle_id):
+    print(vehicle_id)
     for item in user['vehicle']:
-        if user['vehicle'][item] == vehicle_id:
-            return True
+        # For users that only have 1 vehicle
+        if isinstance(user['vehicle'], str):
+            if user['vehicle'] == vehicle_id:
+                return True
+        # For users that have multiple vehicles
+        elif isinstance(user['vehicle'], dict):
+            if user['vehicle'][item] == vehicle_id:
+                return True
     return False
 
 
@@ -213,9 +219,6 @@ def get_vehicle_ids():
         user = get_user(post_request['token'])
     except KeyError:
         return "Error: Missing login token."
-    # If token is somehow invalid (should not happen at this point), return the error message.
-    if isinstance(user, str):
-        return user
 
     # noinspection PyTypeChecker
     return user['vehicle']

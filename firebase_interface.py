@@ -78,9 +78,9 @@ class FirebaseInterface:
         """
 
         if subkey is None:
-            response = self._firebase_obj.update('', key, val)
+            response = self._firebase_obj.put('', key, val)
         else:
-            response = self._firebase_obj.update(key, subkey, val)
+            response = self._firebase_obj.put(key, subkey, val)
 
         # Update the local database dictionary with the new database.
         self._database_dict = self.get_data()
