@@ -192,9 +192,16 @@ def get_user(token):
 
 
 def can_access_vehicle(user, vehicle_id):
+    print(vehicle_id)
     for item in user['vehicle']:
-        if user['vehicle'][item] == vehicle_id:
-            return True
+        # For users that only have 1 vehicle
+        if isinstance(user['vehicle'], str):
+            if user['vehicle'] == vehicle_id:
+                return True
+        # For users that have multiple vehicles
+        elif isinstance(user['vehicle'], dict):
+            if user['vehicle'][item] == vehicle_id:
+                return True
     return False
 
 
@@ -212,9 +219,6 @@ def get_vehicle_ids():
         user = get_user(post_request['token'])
     except KeyError:
         return "Error: Missing login token."
-    # If token is somehow invalid (should not happen at this point), return the error message.
-    if isinstance(user, str):
-        return user
 
     # noinspection PyTypeChecker
     return user['vehicle']
