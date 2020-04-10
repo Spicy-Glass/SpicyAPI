@@ -7,6 +7,8 @@ from flask import Flask, request
 
 from firebase_interface import FirebaseInterface
 from queuingutils.publisher import Publisher
+import logging
+import datetime
 
 spicy_api = Flask(__name__)
 
@@ -16,7 +18,10 @@ with open("creds.json") as file:
 FIREBASE_OBJ = FirebaseInterface(creds_dict=creds)
 PROJECT_ID = 'pub-sub132608'
 TOPIC_NAME = 'api-pub'
-
+logging.basicConfig(filename='program.log', level='INFO')
+recorded_time = datetime.datetime.now().strftime("%d-%b-%Y (%H:%M:%S.%f)")
+logging.info('Program starting\n')
+logging.info(recorded_time)
 
 def encode(raw_string):
     encoded_string = raw_string.replace(".", "_DOT_")
@@ -54,6 +59,8 @@ def turn_off_vehicle(vehicle_id):
     # add the updated values to the states dictionary
     current_states['defrost'] = new_defrost
     current_states['seatHeater'] = new_seat_heater
+
+    logging.info('Setting all of the vehicles states to false')
 
     # pass the updated dictionary to the firebase database
     set_response = FIREBASE_OBJ.change_value(key=f'vehicles/{vehicle_id}',
@@ -240,12 +247,15 @@ def get_vehicle_data():
     except KeyError:
         return "Error: Missing login token."
 
+    logging.info(f'Getting vehicle data')
+
     try:
         vehicle_id = post_request['vehicle_id']
     except KeyError:
         return "Error: No vehicle id provided."
 
     if vehicle_id is None or vehicle_id == "":
+        logging.error('No vehicle id provided.')
         return "Error: No vehicle id provided."
 
     if can_access_vehicle(user, vehicle_id):
@@ -322,6 +332,8 @@ def set_val():
             return "False"
         else:
             publisher.publish_message(vehicle_data['states'], recipient=sub_name)
+
+            logging.info(f"Alerting {sub_name} of {sender}\'s changes")
 
             return f"Sending message to {sub_name}"
     else:  # Cannot access vehicle
