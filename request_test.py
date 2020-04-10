@@ -87,14 +87,14 @@ if __name__ == "__main__":
 
     print(f"Vehicle IDs: {vehicle_id_list}")
 
-    # dict1 = {
-    #     "vehicle_id": "V-1",
-    #     "key": "carLock",
-    #     "subkey": None,
-    #     "new_val": False,
-    #     "sender": "app",
-    #     "token": "asdfjfdklsjdjdyebv"
-    # }
+    dict1 = {
+         "vehicle_id": "V-1",
+        "key": "carLock",
+         "subkey": None,
+         "new_val": False,
+         "sender": "app",
+         "token": "asdfjfdklsjdjdyebv"
+     }
 
     dict2 = {
         "vehicle_id": "V-2",
@@ -105,5 +105,5 @@ if __name__ == "__main__":
         "token": "asdfjfdklsjdjdyebv"
     }
 
-    # test_obj.set_val_test(message=dict1,)
+    test_obj.set_val_test(message=dict1)
     test_obj.set_val_test(message=dict2)

@@ -3,6 +3,8 @@ from firebase_interface import FirebaseInterface
 from queuingutils.publisher import Publisher
 from queuingutils.subscriber import Subscriber
 import json
+import logging
+import datetime
 
 spicy_api = Flask(__name__)
 
@@ -12,7 +14,10 @@ with open("creds.json") as file:
 FIREBASE_OBJ = FirebaseInterface(creds_dict=creds)
 PROJECT_ID = 'pub-sub132608'
 TOPIC_NAME = 'api-pub'
-
+logging.basicConfig(filename='program.log', level='INFO')
+recorded_time = datetime.datetime.now().strftime("%d-%b-%Y (%H:%M:%S.%f)")
+logging.info('Program starting\n')
+logging.info(recorded_time)
 
 def encode(raw_string):
     encoded_string = raw_string.replace(".", "_DOT_")
@@ -51,6 +56,8 @@ def turn_off_vehicle(id):
     current_states['defrost'] = new_defrost
     current_states['seatHeater'] = new_seat_heater
 
+    logging.info('Setting all of the vehicles states to false')
+
     # pass the updated dictionary to the firebase database
     set_response = FIREBASE_OBJ.change_value(key=f'vehicles/{id}',
                                              subkey='states',
@@ -86,26 +93,32 @@ def user_info():
         username = post_request['username']
         password = post_request['password']
     except KeyError:
+        logging.warning("Error: Missing required key value pair.")
         return "Error: Missing required key value pair."
 
     if password is None:
         if username is None:
+            logging.warning("Error: password and username keys have no values.")
             return "Error: password and username keys have no values."
+        logging.warning("Error: password key has no value.")
         return "Error: password key has no value."
 
     if username is None:
+        logging.warning("Error: username key has no value.")
         return "Error: username key has no value."
 
     user = FIREBASE_OBJ.get_data(key=f'users',
                                  subkey=encode(username))
 
     if user is None:
+        logging.warning(f"Error: username {username} not found.")
         return f"Error: username {username} not found."
 
     if password == user['password']:
         return user['vehicle']
         # return user
     else:
+        logging.warning("Fetch Unsuccessful: Invalid Password")
         return "Fetch Unsuccessful: Invalid Password"
 
 
@@ -122,18 +135,24 @@ def get_vehicle_data():
 
     post_request = request.json
 
+    logging.info(f'Getting vehicle data')
+
     try:
         vehicle_id = post_request['vehicle_id']
     except KeyError:
+        logging.error('vehicle_id key not provided in POST request')
         return "Error: vehicle_id key not provided in POST request."
 
     if vehicle_id is None or vehicle_id == "":
+        logging.error('No vehicle id provided.')
         return "Error: No vehicle id provided."
 
+    logging.info('Retrieving vehicle data.')
     vehicle_data = FIREBASE_OBJ.get_data(key=f'vehicles',
                                          subkey=vehicle_id)
 
     if vehicle_id is None:
+        logging.warning(f'No vehicle data found for {vehicle_id}.')
         return f"Error: No vehicle data found for {vehicle_id}."
 
     return vehicle_data
@@ -164,6 +183,7 @@ def set_val():
     sender = post_request['sender']
     token = post_request['token']
 
+    logging.info(f'{sender} making a change to the database.')
     publisher = Publisher(PROJECT_ID, TOPIC_NAME)
 
     # build the subscriber name
@@ -179,6 +199,7 @@ def set_val():
         set_response = turn_off_vehicle(vehicle_id)
 
         if set_response is None:
+            logging.error('Did not receive a response from Firebase')
             return "False"
         else:
             vehicle_data = FIREBASE_OBJ.get_data(key=f'vehicles',
@@ -186,6 +207,8 @@ def set_val():
 
             # Assumes that the subscribers already exist
             publisher.publish_message(vehicle_data['states'], recipient=sub_name)
+
+            logging.info(f"Alerting {sub_name} of {sender}\'s changes")
 
             return f"Sending message to {sub_name}"
 
@@ -197,9 +220,12 @@ def set_val():
                                          subkey=vehicle_id)
 
     if response is None:
+        logging.error('Did not receive a response from Firebase')
         return "False"
     else:
         publisher.publish_message(vehicle_data['states'], recipient=sub_name)
+
+        logging.info(f"Alerting {sub_name} of {sender}\'s changes")
 
         return f"Sending message to {sub_name}"
 
