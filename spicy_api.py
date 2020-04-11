@@ -102,7 +102,7 @@ def revoke_token():
     try:
         token = post_request['token']
     except KeyError:
-        return "Error: Missing login token."
+        raise KeyError("Error: Missing login token.")
     user = get_user(token)
     # TODO Revoke the token and return true
     return "{\"success\": false}"
