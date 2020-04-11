@@ -60,7 +60,7 @@ def turn_off_vehicle(vehicle_id):
     current_states['defrost'] = new_defrost
     current_states['seatHeater'] = new_seat_heater
 
-    logging.info('Setting all of the vehicles states to false')
+    # logging.info('Setting all of the vehicles states to false')
 
     # pass the updated dictionary to the firebase database
     set_response = FIREBASE_OBJ.change_value(key=f'vehicles/{vehicle_id}',
@@ -100,12 +100,12 @@ def revoke_token():
     """
     post_request = request.json
     try:
-        user = get_user(post_request['token'])
+        token = post_request['token']
     except KeyError:
         return "Error: Missing login token."
-    # TODO Revoke the token
-    # Return an empty json object to indicate success
-    return {}
+    user = get_user(token)
+    # TODO Revoke the token and return true
+    return "{\"success\": false}"
 
 
 # Verify that your token is still valid
@@ -120,13 +120,13 @@ def verify_token():
     """
     post_request = request.json
     try:
-        user = get_user(post_request['token'])
+        token = post_request['token']
     except KeyError:
         raise KeyError("VerifyToken: Missing login token.")
+    user = get_user(token)
     if user is None:
         raise ValueError("VerifyToken: Invalid login token.")
-    # Return an empty json object to indicate success
-    return "{}"
+    return "{\"success\": true}"
 
 
 # Attempt to log in to the server, returns the error message if it fails or the provided credentials are invalid
@@ -155,7 +155,7 @@ def attempt_login():
                                  subkey=encode(username))
 
     if user is None:
-        raise ValueError("Invalid username or password.")
+        raise ValueError("Error: Invalid username or password.")
 
     if str(hash_string_with_salt(password, user['salt'])) == user['password']:
         token = gen_token()
@@ -164,11 +164,14 @@ def attempt_login():
         FIREBASE_OBJ.add_value(key=f'users/{encode(username)}', subkey='token', val=hashed_token)
         return {"token": f"{token}"}
     else:
-        raise ValueError("Invalid password.")
+        raise ValueError("Error: Invalid username or password.")
 
-
+# Generates a token
 def gen_token():
+    # Define all possible characters the token can contain as a set of alphanumeric characters
     possible_chars = string.ascii_lowercase + string.ascii_uppercase + string.digits
+    # Start with an empty string and add a random character to that 25-35 times
+    # noinspection PyUnusedLocal
     return ''.join(random.choice(possible_chars) for i in range(random.randint(25, 35)))
 
 
@@ -186,15 +189,15 @@ def get_user(token):
 
     users = FIREBASE_OBJ.get_data(key=f'users')
 
-    for user in users.keys():
-        hashed_token = str(hash_string_with_salt(token, users[user]['salt']))
+    for user in users:
+        hashed_token = str(hash_string_with_salt(token, user['salt']))
         # Look through all users for the user holding the passed in token
         try:
-            if users[user]['token'] == hashed_token:
-                return users[user]
+            if user['token'] == hashed_token:
+                return user
         except KeyError:
+            # The user doesn't have a token
             continue
-
     return None
 
 
@@ -223,11 +226,10 @@ def get_vehicle_ids():
     """
     post_request = request.json
     try:
-        user = get_user(post_request['token'])
+        token = post_request['token']
     except KeyError:
         return "Error: Missing login token."
-
-    # noinspection PyTypeChecker
+    user = get_user(token)
     return user['vehicle']
 
 
@@ -243,9 +245,11 @@ def get_vehicle_data():
     """
     post_request = request.json
     try:
-        user = get_user(post_request['token'])
+        token = post_request['token']
     except KeyError:
         return "Error: Missing login token."
+
+    user = get_user(token)
 
     logging.info(f'Getting vehicle data')
 
@@ -298,9 +302,10 @@ def set_val():
         subkey = None
 
     try:
-        user = get_user(post_request['token'])
+        post_request['token']
     except KeyError:
         return "False"
+    user = get_user(token)
 
     if can_access_vehicle(user, vehicle_id):
         publisher = Publisher(PROJECT_ID, TOPIC_NAME)
