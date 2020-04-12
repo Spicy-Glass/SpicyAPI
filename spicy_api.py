@@ -2,6 +2,7 @@ import hashlib
 import json
 import random
 import string
+import sys
 
 from flask import Flask, request
 
@@ -18,10 +19,11 @@ with open("creds.json") as file:
 FIREBASE_OBJ = FirebaseInterface(creds_dict=creds)
 PROJECT_ID = 'pub-sub132608'
 TOPIC_NAME = 'api-pub'
-logging.basicConfig(filename='program.log', level='INFO')
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 recorded_time = datetime.datetime.now().strftime("%d-%b-%Y (%H:%M:%S.%f)")
 logging.info('Program starting\n')
-logging.info(recorded_time)
+logging.info(f"{recorded_time}\n")
+
 
 def encode(raw_string):
     encoded_string = raw_string.replace(".", "_DOT_")
@@ -99,10 +101,12 @@ def revoke_token():
     :return:
     """
     post_request = request.json
+    logging.info("Revoking token.\n")
     try:
         token = post_request['token']
     except KeyError:
-        raise KeyError("Error: Missing login token.")
+        logging.error("Missing login token.\n")
+        raise KeyError("Missing login token.")
     user = get_user(token)
     # TODO Revoke the token and return true
     return "{\"success\": false}"
@@ -119,9 +123,11 @@ def verify_token():
     :return:
     """
     post_request = request.json
+    logging.info("Verifying Token\n")
     try:
         token = post_request['token']
     except KeyError:
+        logging.error("Missing login token.\n")
         raise KeyError("VerifyToken: Missing login token.")
     user = get_user(token)
     if user is None:
@@ -142,32 +148,43 @@ def attempt_login():
     """
     post_request = request.json
 
+    logging.info("Attempting Login\n")
+
     try:
         username = post_request['username']
         password = post_request['password']
     except KeyError:
-        raise KeyError("Error: Missing username or password.")
+        logging.error("Missing username or password.\n")
+        raise KeyError("Missing username or password.")
 
     if password is None or username is None:
-        raise ValueError("Error: Missing username or password.")
+        logging.error("Missing username or password.\n")
+        raise ValueError("Missing username or password.")
 
+    logging.info("Getting user data\n")
     user = FIREBASE_OBJ.get_data(key=f'users',
                                  subkey=encode(username))
 
     if user is None:
-        raise ValueError("Error: Invalid username or password.")
+        logging.error("Invalid username or password.\n")
+        raise ValueError("Invalid username or password.")
 
+    logging.info("Verifying Password\n")
     if str(hash_string_with_salt(password, user['salt'])) == user['password']:
         token = gen_token()
         hashed_token = str(hash_string_with_salt(token, user['salt']))
         # Attempt to store hashed_token in the database as one of the user's tokens. This should be tested.
         FIREBASE_OBJ.add_value(key=f'users/{encode(username)}', subkey='token', val=hashed_token)
+        logging.info("Issuing token.\n")
         return {"token": f"{token}"}
     else:
-        raise ValueError("Error: Invalid username or password.")
+        logging.warning("Invalid username or password.\n")
+        raise ValueError("Invalid username or password.")
+
 
 # Generates a token
 def gen_token():
+    logging.info('Generating Token\n')
     # Define all possible characters the token can contain as a set of alphanumeric characters
     possible_chars = string.ascii_lowercase + string.ascii_uppercase + string.digits
     # Start with an empty string and add a random character to that 25-35 times
@@ -184,25 +201,29 @@ def hash_string_with_salt(input_string, salt):
 
 
 def get_user(token):
+    logging.info("Getting user.\n")
     if token is None:
         return None
 
     users = FIREBASE_OBJ.get_data(key=f'users')
 
-    for user in users:
-        hashed_token = str(hash_string_with_salt(token, user['salt']))
+    for user in users.keys():
+        hashed_token = str(hash_string_with_salt(token, users[user]['salt']))
         # Look through all users for the user holding the passed in token
         try:
-            if user['token'] == hashed_token:
-                return user
+            if users[user]['token'] == hashed_token:
+                logging.info("Returning user info.\n")
+                return users[user]
         except KeyError:
             # The user doesn't have a token
             continue
+
+    logging.warning("User could not be found or verified.\n")
     return None
 
 
 def can_access_vehicle(user, vehicle_id):
-    print(vehicle_id)
+    logging.info("Verifying user access.\n")
     for item in user['vehicle']:
         # For users that only have 1 vehicle
         if isinstance(user['vehicle'], str):
@@ -225,11 +246,14 @@ def get_vehicle_ids():
     :return:
     """
     post_request = request.json
+    logging.info("Getting vehicle IDs.\n")
     try:
         token = post_request['token']
     except KeyError:
-        return "Error: Missing login token."
+        logging.error("Missing login token\n")
+        raise KeyError("Missing login token.")
     user = get_user(token)
+    logging.info("Returning vehicle IDs.\n")
     return user['vehicle']
 
 
@@ -244,34 +268,39 @@ def get_vehicle_data():
     :return:
     """
     post_request = request.json
+    logging.info("Getting vehicle data.\n")
     try:
         token = post_request['token']
     except KeyError:
-        return "Error: Missing login token."
+        logging.error("Missing login token.\n")
+        raise KeyError("Missing login token.")
 
     user = get_user(token)
 
-    logging.info(f'Getting vehicle data')
+    logging.info(f'Getting vehicle data\n')
 
     try:
         vehicle_id = post_request['vehicle_id']
     except KeyError:
-        return "Error: No vehicle id provided."
+        logging.error('No vehicle id provided.\n')
+        raise KeyError("No vehicle id provided.")
 
     if vehicle_id is None or vehicle_id == "":
-        logging.error('No vehicle id provided.')
-        return "Error: No vehicle id provided."
+        logging.error('No vehicle id provided.\n')
+        raise KeyError("No vehicle id provided.")
 
     if can_access_vehicle(user, vehicle_id):
         vehicle_data = FIREBASE_OBJ.get_data(key=f'vehicles',
                                              subkey=vehicle_id)
 
         if vehicle_data is None:
-            return f"Error: No vehicle data found for {vehicle_data}."
+            logging.warning(f"No vehicle data found for {vehicle_data}.")
+            raise ValueError(f"No vehicle data found for {vehicle_data}.")
 
         return vehicle_data
     else:
-        return "Error: You are not authorized to view this vehicle's data"
+        logging.warning("You are not authorized to view this vehicle's data")
+        raise PermissionError("You are not authorized to view this vehicle's data")
 
 
 @spicy_api.route("/set_val", methods=['POST'])
@@ -290,6 +319,8 @@ def set_val():
     """
     post_request = request.json
 
+    logging.info("Changing state for a vehicle.\n")
+
     vehicle_id = post_request['vehicle_id']
     key = post_request['key']
     new_val = post_request['new_val']
@@ -304,7 +335,8 @@ def set_val():
     try:
         post_request['token']
     except KeyError:
-        return "False"
+        logging.error("Missing login token.\n")
+        raise KeyError("Missing login token.")
     user = get_user(token)
 
     if can_access_vehicle(user, vehicle_id):
@@ -316,7 +348,8 @@ def set_val():
             set_response = turn_off_vehicle(vehicle_id)
 
             if set_response is None:
-                return "False"
+                logging.error("Unable to set vehicle states to False.\n")
+                raise NotImplementedError("Unable to set vehicle states to False.")
             else:
                 vehicle_data = FIREBASE_OBJ.get_data(key=f'vehicles',
                                                      subkey=vehicle_id)
@@ -334,7 +367,8 @@ def set_val():
                                              subkey=vehicle_id)
 
         if response is None:
-            return "False"
+            logging.error('Unable to change state of vehicle.\n')
+            raise NotImplementedError('Unable to change state of vehicle.')
         else:
             publisher.publish_message(vehicle_data['states'], recipient=sub_name)
 
@@ -342,7 +376,8 @@ def set_val():
 
             return f"Sending message to {sub_name}"
     else:  # Cannot access vehicle
-        return "False"
+        logging.warning("You are not authorized to change this vehicle's states.\n")
+        raise PermissionError("You are not authorized to change this vehicle's states")
 
 
 if __name__ == "__main__":
