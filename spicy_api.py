@@ -170,6 +170,11 @@ def attempt_login():
         raise ValueError("Invalid username or password.")
 
     logging.info("Verifying Password\n")
+
+    logging.info(hash_string_with_salt(password, user['salt']))
+
+    logging.info(user['password'])
+
     if hash_string_with_salt(password, user['salt']) == user['password']:
         token = gen_token()
         hashed_token = hash_string_with_salt(token, user['salt'])
@@ -197,7 +202,7 @@ def hash_string_with_salt(input_string, salt):
         input_string = input_string.encode('utf-8')
     if isinstance(salt, str):
         salt = salt.encode('utf-8')
-    return str(hashlib.pbkdf2_hmac('sha512', input_string, salt, 100000)).replace("/", "").replace("\\", "")
+    return str(hashlib.pbkdf2_hmac('sha512', input_string, salt, 100000)).replace("/", "")
 
 
 def get_user(token):
@@ -206,6 +211,10 @@ def get_user(token):
         return None
 
     users = FIREBASE_OBJ.get_data(key=f'users')
+
+    if users is None:
+        logging.error("get_user: Error in retrieving users.\n")
+        raise ValueError("get_user: Error in retrieving users.")
 
     for user in users.keys():
         hashed_token = hash_string_with_salt(token, users[user]['salt'])
@@ -223,6 +232,10 @@ def get_user(token):
 
 
 def can_access_vehicle(user, vehicle_id):
+    if user is None:
+        logging.error("can_access_vehicle: user is NoneType\n")
+        raise ValueError('can_access_vehicle: user is NoneType\n')
+
     logging.info("Verifying user access.\n")
     for item in user['vehicle']:
         # For users that only have 1 vehicle
