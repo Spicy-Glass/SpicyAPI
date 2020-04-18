@@ -170,9 +170,9 @@ def attempt_login():
         raise ValueError("Invalid username or password.")
 
     logging.info("Verifying Password\n")
-    if str(hash_string_with_salt(password, user['salt'])) == user['password']:
+    if hash_string_with_salt(password, user['salt']) == user['password']:
         token = gen_token()
-        hashed_token = str(hash_string_with_salt(token, user['salt']))
+        hashed_token = hash_string_with_salt(token, user['salt'])
         # Attempt to store hashed_token in the database as one of the user's tokens. This should be tested.
         FIREBASE_OBJ.add_value(key=f'users/{encode(username)}', subkey='token', val=hashed_token)
         logging.info("Issuing token.\n")
@@ -197,7 +197,7 @@ def hash_string_with_salt(input_string, salt):
         input_string = input_string.encode('utf-8')
     if isinstance(salt, str):
         salt = salt.encode('utf-8')
-    return hashlib.pbkdf2_hmac('sha512', input_string, salt, 100000)
+    return str(hashlib.pbkdf2_hmac('sha512', input_string, salt, 100000)).replace("/", "").replace("\\", "")
 
 
 def get_user(token):
@@ -208,7 +208,7 @@ def get_user(token):
     users = FIREBASE_OBJ.get_data(key=f'users')
 
     for user in users.keys():
-        hashed_token = str(hash_string_with_salt(token, users[user]['salt']))
+        hashed_token = hash_string_with_salt(token, users[user]['salt'])
         # Look through all users for the user holding the passed in token
         try:
             if users[user]['token'] == hashed_token:
