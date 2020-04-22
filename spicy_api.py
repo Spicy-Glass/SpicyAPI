@@ -24,18 +24,56 @@ recorded_time = datetime.datetime.now().strftime("%d-%b-%Y (%H:%M:%S.%f)")
 logging.info('Program starting\n')
 logging.info(f"{recorded_time}\n")
 
+"""
+################### Helper Functions #########################
+"""
+
 
 def encode(raw_string):
+    """
+
+    This function replaces all periods with "_DOT_" in order to be
+    input into the Firebase database.
+
+    :param raw_string: String containing the user's email
+    :return: str:encoded user email
+    """
     encoded_string = raw_string.replace(".", "_DOT_")
     return encoded_string
 
 
 def decode(encoded_string):
-    raw_string = encoded_string.replace("_DOT_", ".")
-    return raw_string
+    """
+
+    This function replaces all of the instances of "_DOT_" with a
+    period, undoing the encoding from encode()
+
+    :param encoded_string: str:encoded user email
+    :return: str:original user email
+    """
+    decoded_string = encoded_string.replace("_DOT_", ".")
+    return decoded_string
 
 
 def turn_off_vehicle(vehicle_id):
+    """
+
+    This function will "turn off" the car with the specified vehicle
+    id.
+
+    What is turned off when the vehicle is turned off?
+
+    - carOn
+    - defrost['front']
+    - defrost['back]
+    - seatHeater[bDriver]
+    - seatHeater[bPass]
+    - seatHeater[fDriver]
+    - seatHeater[fPass]
+
+    :param vehicle_id: str:unique identifier for a vehicle
+    :return:
+    """
     # retrieve the data corresponding to the desired vehicle
     vehicle_data = FIREBASE_OBJ.get_data(key=f'vehicles',
                                          subkey=vehicle_id)
@@ -62,8 +100,6 @@ def turn_off_vehicle(vehicle_id):
     current_states['defrost'] = new_defrost
     current_states['seatHeater'] = new_seat_heater
 
-    # logging.info('Setting all of the vehicles states to false')
-
     # pass the updated dictionary to the firebase database
     set_response = FIREBASE_OBJ.change_value(key=f'vehicles/{vehicle_id}',
                                              subkey='states',
@@ -72,123 +108,32 @@ def turn_off_vehicle(vehicle_id):
     return set_response
 
 
-def build_subscriber_name(sender, token, vehicle_id=None):
+def build_subscriber_name(sender):
+    """
+
+    This function takes the sender type which could be either app or
+    vehicle and returns the appropriate name of the subscriber to send
+    the message to.
+
+    :param sender:
+    :return:
+    """
     if sender == "app":
-        return f"sub_{token}_{vehicle_id}"
+        return f"sub_vehicle"
     elif sender == "vehicle":
-        return f"sub_{token}_app"
+        return f"sub_app"
     return False
-
-
-def build_publisher_name(token):
-    return f"pub_{token}"
-
-
-# Temporary, we shouldn't keep this long term
-@spicy_api.route("/get_full_database", methods=['GET'])
-def index():
-    return FIREBASE_OBJ.get_data()
-
-
-# Revoke a token (Should be done on logout)
-@spicy_api.route("/revoke_token", methods=['POST'])
-def revoke_token():
-    """
-    post_request sample: {
-        "token": "token",
-    }
-
-    :return:
-    """
-    post_request = request.json
-    logging.info("Revoking token.\n")
-    try:
-        token = post_request['token']
-    except KeyError:
-        logging.error("Missing login token.\n")
-        raise KeyError("Missing login token.")
-    user = get_user(token)
-    # TODO Revoke the token and return true
-    return "{\"success\": false}"
-
-
-# Verify that your token is still valid
-@spicy_api.route("/verify_token", methods=['POST'])
-def verify_token():
-    """
-    post_request sample: {
-        "token": "token",
-    }
-
-    :return:
-    """
-    post_request = request.json
-    logging.info("Verifying Token\n")
-    try:
-        token = post_request['token']
-    except KeyError:
-        logging.error("Missing login token.\n")
-        raise KeyError("VerifyToken: Missing login token.")
-    user = get_user(token)
-    if user is None:
-        raise ValueError("VerifyToken: Invalid login token.")
-    return "{\"success\": true}"
-
-
-# Attempt to log in to the server, returns the error message if it fails or the provided credentials are invalid
-@spicy_api.route("/attempt_login", methods=['POST'])
-def attempt_login():
-    """
-    post_request sample: {
-        "username": "username",
-        "password": "password",
-    }
-
-    :return:
-    """
-    post_request = request.json
-
-    logging.info("Attempting Login\n")
-
-    try:
-        username = post_request['username']
-        password = post_request['password']
-    except KeyError:
-        logging.error("Missing username or password.\n")
-        raise KeyError("Missing username or password.")
-
-    if password is None or username is None:
-        logging.error("Missing username or password.\n")
-        raise ValueError("Missing username or password.")
-
-    logging.info("Getting user data\n")
-    user = FIREBASE_OBJ.get_data(key=f'users',
-                                 subkey=encode(username))
-
-    if user is None:
-        logging.error("Invalid username or password.\n")
-        raise ValueError("Invalid username or password.")
-
-    logging.info("Verifying Password\n")
-
-    logging.info(hash_string_with_salt(password, user['salt']))
-
-    logging.info(user['password'])
-
-    if hash_string_with_salt(password, user['salt']) == user['password']:
-        token = gen_token()
-        hashed_token = hash_string_with_salt(token, user['salt'])
-        # Attempt to store hashed_token in the database as one of the user's tokens. This should be tested.
-        FIREBASE_OBJ.add_value(key=f'users/{encode(username)}', subkey='token', val=hashed_token)
-        logging.info("Issuing token.\n")
-        return {"token": f"{token}"}
-    else:
-        logging.warning("Invalid username or password.\n")
-        raise ValueError("Invalid username or password.")
 
 
 # Generates a token
 def gen_token():
+    """
+
+    This function generates a token with random characters and a random length
+    then returns it.
+
+    :return: str:token
+    """
     logging.info('Generating Token\n')
     # Define all possible characters the token can contain as a set of alphanumeric characters
     possible_chars = string.ascii_lowercase + string.ascii_uppercase + string.digits
@@ -198,6 +143,16 @@ def gen_token():
 
 
 def hash_string_with_salt(input_string, salt):
+    """
+
+    This function takes in a value to be hashed and salted and a custom
+    salt. It will then hash and salt the input_string and return it as
+    a string.
+
+    :param input_string: str:value to be hashed and salted
+    :param salt: str:value used to salt input_string
+    :return: str:hashed and salted input_string
+    """
     if isinstance(input_string, str):
         input_string = input_string.encode('utf-8')
     if isinstance(salt, str):
@@ -206,6 +161,13 @@ def hash_string_with_salt(input_string, salt):
 
 
 def get_user(token):
+    """
+
+    This function retrieves user info by passing in that user's token.
+
+    :param token: str:users unique token for access
+    :return: dict:user data
+    """
     logging.info("Getting user.\n")
     if token is None:
         return None
@@ -232,6 +194,15 @@ def get_user(token):
 
 
 def can_access_vehicle(user, vehicle_id):
+    """
+
+    This function verifies whether or not a user can access a vehicle
+    by user data and vehicle id.
+
+    :param user: dict:user data from the database
+    :param vehicle_id: str:unique identifier for the vehicle
+    :return: True if the user can access and False if they can't
+    """
     if user is None:
         logging.error("can_access_vehicle: user is NoneType\n")
         raise ValueError('can_access_vehicle: user is NoneType\n')
@@ -249,9 +220,158 @@ def can_access_vehicle(user, vehicle_id):
     return False
 
 
+"""
+################### Flask Routes #########################
+"""
+
+
+@spicy_api.route("/", methods=['GET'])
+def index():
+    """
+
+    This route will display all routes available on the Spicy API as
+    well as a link to it's documentation
+
+    :return: str:html render of the API's routes
+    """
+    html_render = '<h1>Spicy API</h1>' \
+                  '<h3>Routes</h3>' \
+                  '<ul>' \
+                  '<li>revoke_token</li>' \
+                  '<li>verify_token</li>' \
+                  '<li>attempt_login</li>' \
+                  '<li>get_vehicle_ids</li>' \
+                  '<li>get_vehicle_data</li>' \
+                  '<li>set_val</li>' \
+                  '</ul>' \
+                  '<p>Docs ' \
+                  '<a href="https://documenter.getpostman.com/view/7634315/SzS7Rmsp?version=latest">' \
+                  'here</a></p>'
+    return html_render
+
+
+# Temporary, we shouldn't keep this long term
+@spicy_api.route("/get_full_database", methods=['GET'])
+def get_full_database():
+    """
+
+    This route retrieves all contents of the database.
+
+    :return: string-json:database contents
+    """
+    logging.info("Retrieving whole database from Firebase\n")
+    return FIREBASE_OBJ.get_data()
+
+
+# Revoke a token (Should be done on logout)
+@spicy_api.route("/revoke_token", methods=['POST'])
+def revoke_token():
+    """
+
+    This function doesn't really do anything right now
+
+    post_request sample: {
+        "token": "token",
+    }
+
+    :return: string-json:success status
+    """
+    post_request = request.json
+    logging.info("Revoking token.\n")
+    try:
+        token = post_request['token']
+    except KeyError:
+        logging.error("Missing login token.\n")
+        raise KeyError("Missing login token.")
+    # user = get_user(token)
+    return "{\"success\": false}"
+
+
+# Verify that your token is still valid
+@spicy_api.route("/verify_token", methods=['POST'])
+def verify_token():
+    """
+
+    This route receives a token and verifies it in the database.
+
+    post_request sample: {
+        "token": "token",
+    }
+
+    :return: string-json:success status
+    """
+    post_request = request.json
+    logging.info("Verifying Token\n")
+    try:
+        token = post_request['token']
+    except KeyError:
+        logging.error("Missing login token.\n")
+        raise KeyError("VerifyToken: Missing login token.")
+    user = get_user(token)
+    if user is None:
+        raise ValueError("VerifyToken: Invalid login token.")
+    return "{\"success\": true}"
+
+
+# Attempt to log in to the server, returns the error message if it fails or the provided credentials are invalid
+@spicy_api.route("/attempt_login", methods=['POST'])
+def attempt_login():
+    """
+
+    This route receives a username and password and checks the database
+    to make sure they correspond to the credentials held in the database.
+    If they do, it will return a token to the client.
+
+    post_request sample: {
+        "username": "username",
+        "password": "password",
+    }
+
+    :return: string-json:token
+    """
+    post_request = request.json
+
+    logging.info("Attempting Login\n")
+
+    try:
+        username = post_request['username']
+        password = post_request['password']
+    except KeyError:
+        logging.error("Missing username or password.\n")
+        raise KeyError("Missing username or password.")
+
+    if password is None or username is None:
+        logging.error("Missing username or password.\n")
+        raise ValueError("Missing username or password.")
+
+    logging.info("Getting user data\n")
+    user = FIREBASE_OBJ.get_data(key=f'users',
+                                 subkey=encode(username))
+
+    if user is None:
+        logging.error("Invalid username or password.\n")
+        raise ValueError("Invalid username or password.")
+
+    logging.info("Verifying Password\n")
+
+    if hash_string_with_salt(password, user['salt']) == user['password']:
+        token = gen_token()
+        hashed_token = hash_string_with_salt(token, user['salt'])
+        # Attempt to store hashed_token in the database as one of the user's tokens. This should be tested.
+        FIREBASE_OBJ.add_value(key=f'users/{encode(username)}', subkey='token', val=hashed_token)
+        logging.info("Issuing token.\n")
+        return {"token": f"{token}"}
+    else:
+        logging.warning("Invalid username or password.\n")
+        raise ValueError("Invalid username or password.")
+
+
 @spicy_api.route("/get_vehicle_id", methods=['POST'])
 def get_vehicle_ids():
     """
+
+    This route retrieves all of a user's vehicle ID's from the database
+
     post_request sample: {
         "token": "token",
     }
@@ -273,15 +393,17 @@ def get_vehicle_ids():
 @spicy_api.route("/get_vehicle_data", methods=['POST'])
 def get_vehicle_data():
     """
+
+    This route retrieves a vehicle's data from the database
+
     post_request sample: {
         "token": "token",
         "vehicle_id": "vehicle1",
     }
 
-    :return:
+    :return: json containing the vehicle's data
     """
     post_request = request.json
-    logging.info("Getting vehicle data.\n")
     try:
         token = post_request['token']
     except KeyError:
@@ -289,8 +411,6 @@ def get_vehicle_data():
         raise KeyError("Missing login token.")
 
     user = get_user(token)
-
-    logging.info(f'Getting vehicle data\n')
 
     try:
         vehicle_id = post_request['vehicle_id']
@@ -303,6 +423,8 @@ def get_vehicle_data():
         raise KeyError("No vehicle id provided.")
 
     if can_access_vehicle(user, vehicle_id):
+        logging.info("Getting vehicle data from Firebase\n")
+
         vehicle_data = FIREBASE_OBJ.get_data(key=f'vehicles',
                                              subkey=vehicle_id)
 
@@ -319,9 +441,11 @@ def get_vehicle_data():
 @spicy_api.route("/set_val", methods=['POST'])
 def set_val():
     """
+
+    This route changes a value in the database
+
     Example POST Request
     post_request = {
-        "token": "token",
         "vehicle_id": "string",
         "key": "string",
         "subkey": "string",  # Optional
@@ -338,59 +462,56 @@ def set_val():
     key = post_request['key']
     new_val = post_request['new_val']
     sender = post_request['sender']
-    token = post_request['token']
 
     try:
         subkey = post_request['subkey']
     except KeyError:
         subkey = None
 
-    try:
-        post_request['token']
-    except KeyError:
-        logging.error("Missing login token.\n")
-        raise KeyError("Missing login token.")
-    user = get_user(token)
+    publisher = Publisher(PROJECT_ID, TOPIC_NAME)
+    # build the subscriber name
+    sub_name = build_subscriber_name(sender)
+    # check if the request is to turn off the car
+    if key == 'carOn' and new_val is False:
+        logging.info('Turning car off\n')
 
-    if can_access_vehicle(user, vehicle_id):
-        publisher = Publisher(PROJECT_ID, TOPIC_NAME)
-        # build the subscriber name
-        sub_name = build_subscriber_name(sender, token, vehicle_id)
-        # check if the request is to turn off the car
-        if key == 'carOn' and new_val is False:
-            set_response = turn_off_vehicle(vehicle_id)
+        set_response = turn_off_vehicle(vehicle_id)
 
-            if set_response is None:
-                logging.error("Unable to set vehicle states to False.\n")
-                raise NotImplementedError("Unable to set vehicle states to False.")
-            else:
-                vehicle_data = FIREBASE_OBJ.get_data(key=f'vehicles',
-                                                     subkey=vehicle_id)
-
-                # Assumes that the subscribers already exist
-                publisher.publish_message(vehicle_data['states'], recipient=sub_name)
-
-                return f"Sending message to {sub_name}"
-
-        response = FIREBASE_OBJ.change_value(key=f"vehicles/{vehicle_id}/states/{key}",
-                                             subkey=subkey,
-                                             val=new_val)
-
-        vehicle_data = FIREBASE_OBJ.get_data(key=f'vehicles',
-                                             subkey=vehicle_id)
-
-        if response is None:
-            logging.error('Unable to change state of vehicle.\n')
-            raise NotImplementedError('Unable to change state of vehicle.')
+        if set_response is None:
+            logging.error("Unable to set vehicle states to False.\n")
+            raise NotImplementedError("Unable to set vehicle states to False.")
         else:
+            logging.info("Retrieving updated vehicle information from Firebase\n")
+            vehicle_data = FIREBASE_OBJ.get_data(key=f'vehicles',
+                                                 subkey=vehicle_id)
+
+            logging.info(f"Sending message to {sub_name}\n")
+
+            # Assumes that the subscribers already exist
             publisher.publish_message(vehicle_data['states'], recipient=sub_name)
 
-            logging.info(f"Alerting {sub_name} of {sender}\'s changes")
-
             return f"Sending message to {sub_name}"
-    else:  # Cannot access vehicle
-        logging.warning("You are not authorized to change this vehicle's states.\n")
-        raise PermissionError("You are not authorized to change this vehicle's states")
+
+    logging.info("Updating Firebase\n")
+
+    response = FIREBASE_OBJ.change_value(key=f"vehicles/{vehicle_id}/states/{key}",
+                                         subkey=subkey,
+                                         val=new_val)
+
+    logging.info("Retrieving updated vehicle information from Firebase\n")
+
+    vehicle_data = FIREBASE_OBJ.get_data(key=f'vehicles',
+                                         subkey=vehicle_id)
+
+    if response is None:
+        logging.error('Unable to change state of vehicle.\n')
+        raise NotImplementedError('Unable to change state of vehicle.')
+    else:
+        publisher.publish_message(vehicle_data['states'], recipient=sub_name)
+
+        logging.info(f"Alerting {sub_name} of {sender}\'s changes")
+
+        return f"Sending message to {sub_name}"
 
 
 if __name__ == "__main__":
