@@ -349,6 +349,34 @@ On your Flask terminal where you ran the API, something like this should appear:
 127.0.0.1 - - [20/Mar/2020 23:08:32] "POST /set_val HTTP/1.1" 200 -
 ```
 
+## IoT Communication
+
+### Description
+
+This API uses the PubSub queuing service from the Google Cloud Platform to 
+communicate back to the hardware devices in the network and the app users
+to alert them of state changes in the Database.
+ 
+![Fan out image](images/FanoutExchange.PNG)
+(Source: https://www.rabbitmq.com/tutorials/amqp-concepts.html)
+
+Unfortunately, fan out exchanges are the only kind of exchange that we were 
+able to implement using this service. Fan out exchanges are such that the 
+Publisher (Topic) sends a message to each Subscriptions' individual queue 
+associated with that Publisher.
+
+State of the vehicle (Raspberry Pi) and user information from the app are all 
+held on the a Firebase Realtime Database.
+
+### Current model
+
+![System Architecture](Spicy%20Architecture.jpeg)
+
+We have a Publisher on the API that sends out messages to the app when the 
+Raspberry Pi makes changes and vice versa. This event-driven model allows for 
+minimum requests to the API and Firebase database as well as load on all 
+individual parts of the system.
+
 ## Deployment
 
 * (Local w/ Flask) This can be run locally at http://localhost:8080/ by running 
