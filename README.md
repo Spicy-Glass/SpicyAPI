@@ -370,7 +370,7 @@ held on the a Firebase Realtime Database.
 
 ### Current model
 
-![System Architecture](Spicy%20Architecture.jpeg)
+![System Architecture](images/"Spicy Architecture.jpeg")
 
 We have a Publisher on the API that sends out messages to the app when the 
 Raspberry Pi makes changes and vice versa. This event-driven model allows for 
