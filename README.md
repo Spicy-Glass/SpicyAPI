@@ -16,7 +16,7 @@ You will need to first download the SpicyAPI repository from GitHub. To do so,
 type the following command in the terminal.
 
 ```
-git clone https://github.com/aj132608/SpicyAPI.git
+https://github.com/Spicy-Glass/SpicyAPI.git
 ```
 
 The API runs on Python 3.7. So, if you don't have it, download a version 
