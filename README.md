@@ -64,12 +64,46 @@ Once the API is up on running, like shown above, you can start making requests
 to the different routes that are available
 
 ### Routes
-* get_full_database
-* get_vehicle_id
-* get_vehicle_data
-* set_val
+* /
+* /get_full_database
+* /verify_token
+* /revoke_token
+* /get_vehicle_id
+* /get_vehicle_data
+* /set_val
+
+**"/"**
+
+Request Type: GET
+
+Expected Input: NONE
+
+Output: Table of contents containing routes and a link to the API's
+Postman documentation.
+
+```html
+<h1>Spicy API</h1>
+<h3>Routes</h3>
+<ul>
+  <li>revoke_token</li> 
+  <li>verify_token</li>
+  <li>attempt_login</li>
+  <li>get_vehicle_ids</li>
+  <li>get_vehicle_data</li>
+  <li>set_val</li>
+</ul>
+<p>Docs <a href="link">here</a></p>
+```
+
+On your Flask terminal where you ran the API, something like this should appear:
+
+```
+127.0.0.1 - - [20/Mar/2020 23:00:25] "GET / HTTP/1.1" 200 -
+```
 
 **Get Full Database**
+
+Retrieves the entire database from Firebase.
 
 Request Type: GET
 
@@ -148,7 +182,65 @@ On your Flask terminal where you ran the API, something like this should appear:
 127.0.0.1 - - [20/Mar/2020 22:45:20] "GET /get_full_database HTTP/1.1" 200 -
 ```
 
+**Verify Token**
+
+Verifies that the token passed in exists in the database.
+
+Request Type: POST
+
+Expected Input: Dictionary containing the client's unique token
+
+```
+{
+    "token": "YOUR_TOKEN"
+}
+```
+
+Output: Dictionary of vehicle ID's corresponding to that user
+
+```
+{
+    "success": true
+}
+```
+
+On your Flask terminal where you ran the API, something like this should appear:
+
+```
+127.0.0.1 - - [20/Mar/2020 22:45:20] "POST /verify_token HTTP/1.1" 200 -
+```
+
+**Revoke Token**
+
+Removes the token from the database.
+
+Request Type: POST
+
+Expected Input: Dictionary containing the client's unique token
+
+```
+{
+    "token": "YOUR_TOKEN"
+}
+```
+
+Output: Dictionary of vehicle ID's corresponding to that user
+
+```
+{
+    "success": true
+}
+```
+
+On your Flask terminal where you ran the API, something like this should appear:
+
+```
+127.0.0.1 - - [20/Mar/2020 22:45:20] "POST /revoke_token HTTP/1.1" 200 -
+```
+
 **Get Vehicle ID**
+
+Retrieves all of the user's vehicle ID's
 
 Request Type: POST
 
@@ -178,6 +270,8 @@ On your Flask terminal where you ran the API, something like this should appear:
 ```
 
 **Get Vehicle Data**
+
+Retrieves all data on a specific vehicle.
 
 Request Type: POST
 
@@ -225,6 +319,9 @@ On your Flask terminal where you ran the API, something like this should appear:
 
 **Set Val**
 
+Changes the value of anything in the Firebase database. This will mainly be 
+used for changing states of various things on a particular vehicle.
+
 Request Type: POST
 
 Expected Input: Dictionary containing the vehicle whose state you want to 
@@ -254,8 +351,21 @@ On your Flask terminal where you ran the API, something like this should appear:
 
 ## Deployment
 
-TBD
+* (Local w/ Flask) This can be run locally at http://localhost:8080/ by running 
+the spicy_api.py file.
+
+* (Local w/ Flask & Docker) This contains a Dockerfile that containerizes the API and 
+runs it in a Docker container with it's port mapping set up with 
+http://localhost:8080/.
+
+* (Cloud - CloudRun) This is set up to be easily deployed on Google Cloud 
+Platform's CloudRun. Our most recent version is deployed and running on 
+CloudRun currently.
 
 ## Built With
 
+* [GitHub](https://www.github.com/) - CI/CD
 * [PyCharm](https://www.jetbrains.com/pycharm/download/#section=windows) - The IDE used
+* [Google Cloud Platform](https://cloud.google.com/) - Microservice Deployment(Cloud Run), 
+Image Registry(GCR), and Communication(PubSub)
+* [Firebase](https://firebase.google.com/) - Data Storage(Realtime Database) 
