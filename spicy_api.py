@@ -477,7 +477,7 @@ def set_val():
             # Assumes that the subscribers already exist
             publisher.publish_message(vehicle_data['states'], recipient="all")
 
-            return f"Sending message to all"
+            return {"success": True, "message": f"Sending message to all"}
 
     logging.info("Updating Firebase\n")
 
@@ -498,7 +498,7 @@ def set_val():
 
         logging.info(f"Alerting {sub_name} of {sender}\'s changes")
 
-        return f"Sending message to {sub_name}"
+        return {"success": True, "message": f"Sending message to {sub_name}"}
 
 
 if __name__ == "__main__":
