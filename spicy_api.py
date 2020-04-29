@@ -250,19 +250,6 @@ def index():
     return html_render
 
 
-# Temporary, we shouldn't keep this long term
-@spicy_api.route("/get_full_database", methods=['GET'])
-def get_full_database():
-    """
-
-    This route retrieves all contents of the database.
-
-    :return: string-json:database contents
-    """
-    logging.info("Retrieving whole database from Firebase\n")
-    return FIREBASE_OBJ.get_data()
-
-
 # Revoke a token (Should be done on logout)
 @spicy_api.route("/revoke_token", methods=['POST'])
 def revoke_token():
@@ -485,12 +472,12 @@ def set_val():
             vehicle_data = FIREBASE_OBJ.get_data(key=f'vehicles',
                                                  subkey=vehicle_id)
 
-            logging.info(f"Sending message to {sub_name}\n")
+            logging.info(f"Sending message to all\n")
 
             # Assumes that the subscribers already exist
-            publisher.publish_message(vehicle_data['states'], recipient=sub_name)
+            publisher.publish_message(vehicle_data['states'], recipient="all")
 
-            return {"success": True, "message": f"Sending message to {sub_name}"}
+            return {"success": True, "message": f"Sending message to all"}
 
     logging.info("Updating Firebase\n")
 
@@ -515,4 +502,4 @@ def set_val():
 
 
 if __name__ == "__main__":
-    spicy_api.run(debug=True, host='0.0.0.0', port="8080")
+    spicy_api.run(host='0.0.0.0', port="8080")
