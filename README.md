@@ -65,7 +65,6 @@ to the different routes that are available
 
 ### Routes
 * /
-* /get_full_database
 * /verify_token
 * /revoke_token
 * /get_vehicle_id
@@ -101,87 +100,6 @@ On your Flask terminal where you ran the API, something like this should appear:
 127.0.0.1 - - [20/Mar/2020 23:00:25] "GET / HTTP/1.1" 200 -
 ```
 
-**Get Full Database**
-
-Retrieves the entire database from Firebase.
-
-Request Type: GET
-
-Expected Input: NONE
-
-Output: Dictionary with the contents of the whole Database
-
-```
-{
-  "users": {
-    "john_DOT_smith@gmail_DOT_com": {
-      "password": "password", 
-      "vehicle": "V-1"
-    }, 
-    "jane_DOT_doe@yahoo_DOT_com": {
-      "password": "password", 
-      "vehicle": {
-        "V1": "V-1", 
-        "V2": "V-2"
-      }
-    }
-  }, 
-  "vehicles": {
-    "V-1": {
-      "description": {
-        "make": "Nissan", 
-        "model": "Maxima", 
-        "type": "sedan", 
-        "year": "2007"
-      }, 
-      "states": {
-        "carLock": false, 
-        "carOn": true, 
-        "defrost": {
-          "back": false, 
-          "front": false
-        }, 
-        "seatHeater": {
-          "bDriver": false, 
-          "bPass": false, 
-          "fDriver": false, 
-          "fPass": false
-        }
-      }
-    }, 
-    "V-2": {
-      "description": {
-        "make": "Ford", 
-        "model": "Focus", 
-        "type": "sedan", 
-        "year": "2000"
-      }, 
-      "states": {
-        "carLock": true, 
-        "carOn": true, 
-        "defrost": {
-          "back": false, 
-          "front": false
-        }, 
-        "seatHeater": {
-          "bDriver": false, 
-          "bPass": false, 
-          "fDriver": false, 
-          "fPass": false
-        }
-      }
-    }
-  }
-}
-
-```
-
-On your Flask terminal where you ran the API, something like this should appear:
-
-```
-127.0.0.1 - - [20/Mar/2020 22:45:20] "GET /get_full_database HTTP/1.1" 200 -
-```
-
 **Verify Token**
 
 Verifies that the token passed in exists in the database.
@@ -192,7 +110,7 @@ Expected Input: Dictionary containing the client's unique token
 
 ```
 {
-    "token": "YOUR_TOKEN"
+    "token": string
 }
 ```
 
@@ -200,7 +118,7 @@ Output: Dictionary of vehicle ID's corresponding to that user
 
 ```
 {
-    "success": true
+    "success": bool
 }
 ```
 
@@ -220,7 +138,7 @@ Expected Input: Dictionary containing the client's unique token
 
 ```
 {
-    "token": "YOUR_TOKEN"
+    "token": string
 }
 ```
 
@@ -228,7 +146,7 @@ Output: Dictionary of vehicle ID's corresponding to that user
 
 ```
 {
-    "success": true
+    "success": bool
 }
 ```
 
@@ -249,8 +167,8 @@ format
 
 ```
 {
-    "username": "john_DOT_smith@gmail_DOT_com",
-    "password": "password"
+    "username": string,
+    "password": string
 }
 ```
 
@@ -279,7 +197,7 @@ Expected Input: Dictionary containing the desired vehicle ID
 
 ```
 {
-    "vehicle_id": "V-1"
+    "vehicle_id": string
 }
 ```
 
@@ -330,17 +248,21 @@ new value that you want to put there.
 
 ```
 {
-    "vehicle_id": "string",
-    "key": "string",
-    "subkey": "string",  # Optional
-    "new_val": bool
-}
+     "vehicle_id": "string",
+     "key": "string",
+     "subkey": "string",  # Optional
+     "new_val": bool,
+     "sender": "string" # app or device
+ }
 ```
 
 Output: Bool indicating whether or not the value change was successful
 
 ```
-True
+{
+   "success": bool,
+   "message": string
+}
 ```
 
 On your Flask terminal where you ran the API, something like this should appear:
